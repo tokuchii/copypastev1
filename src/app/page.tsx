@@ -131,7 +131,7 @@ const formattedAmount: Cell = {
     <div className="flex flex-col justify-center items-center min-h-screen bg-gray-100 text-black p-4 gap-4">
   
     <div className="text-sm text-gray-700 bg-gray-200 p-2 text-center rounded w-full max-w-5xl mb-2">
-    📋 Instructions: Paste your tab-separated data directly into the table below. Amounts will be checked automatically against their rate × units. Correct amounts are highlighted green, incorrect amounts red. Use Alt + Tab to reset the table. Click &quot;Copy Values&quot; to copy all table data.
+    📋 Instructions: Paste your tab-separated data directly into the table below. Amounts will be checked automatically against their rate × units. Correct amounts are highlighted green, incorrect amounts red. Use Alt + R to reset the table. Click &quot;Copy Values&quot; to copy all table data.
       </div>
       <div className="overflow-x-auto border border-black" onPaste={handlePaste}>
         <table className="border-collapse border border-black text-sm w-full">
