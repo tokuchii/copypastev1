@@ -128,11 +128,29 @@ const formattedAmount: Cell = {
   }, []);
 
   return (
-    <div className="flex flex-col justify-center items-center min-h-screen bg-gray-100 text-black p-4 gap-4">
-  
-    <div className="text-sm text-gray-700 bg-gray-200 p-2 text-center rounded w-full max-w-5xl mb-2">
-    📋 Instructions: Paste your tab-separated data directly into the table below. Amounts will be checked automatically against their rate × units. Correct amounts are highlighted green, incorrect amounts red. Use Alt + R to reset the table. Click &quot;Copy Values&quot; to copy all table data.
-      </div>
+    <div className="relative min-h-screen flex flex-col justify-center items-center text-black p-4 gap-4">
+      <div className="fixed inset-0 -z-10 bg-modern-grid"></div>
+   <img 
+    src="/logo.png" 
+    alt="Logo" 
+    className="absolute top-32 left-1/2 -translate-x-1/2 w-150 h-auto"
+  />
+    <div className="text-md font-serif text-gray-700 bg-gray-200 p-2 text-center rounded w-full max-w-5xl mb-2">
+  📋 Instructions: <br /> <br /> 1️⃣ Paste your tab-separated data directly into the table below. Use &quot;Ctrl + V&quot; <br /> Amounts will be checked automatically against their rate × units. Correct amounts are highlighted 
+  <span className="text-green-600 font-semibold"> green</span>, incorrect amounts 
+  <span className="text-red-600 font-semibold"> red</span>.<br />2️⃣ Use Alt + R to reset the table. <br /> 3️⃣ Click &quot;Copy Values&quot; to copy all table data. <br /> <br /> Enjoy! 🥰
+<a
+  href="https://buymeacoffee.com/kendrake"
+  target="_blank"
+  rel="noopener noreferrer"
+  className="fixed bottom-6 right-6 bg-yellow-400 text-black font-semibold font-serif uppercase text-md px-5 py-2 rounded-lg shadow-md hover:bg-yellow-500 transition-all duration-300 z-50"
+>
+  ☕ Buy me a coffee
+</a>
+
+
+</div>
+
       <div className="overflow-x-auto border border-black" onPaste={handlePaste}>
         <table className="border-collapse border border-black text-sm w-full">
           <thead>

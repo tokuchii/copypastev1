@@ -14,8 +14,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #ededed;
+    --foreground: #0a0a0a;
   }
 }
 
@@ -24,3 +24,16 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+@keyframes gridMove {
+  0% { background-position: 0 0, 0 0; }
+  100% { background-position: 100px 100px, 0 0; }
+}
+.bg-modern-grid {
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.3) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(0, 0, 0, 0.3) 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: gridMove 20s linear infinite;
+  backdrop-filter: blur(3px);
+}
+
+

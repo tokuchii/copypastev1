@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Copy-Paste Table",
+  title: "copypastev1",
 };
 
 export default function RootLayout({
