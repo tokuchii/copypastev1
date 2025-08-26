@@ -2,22 +2,23 @@
 
 import { useState, ClipboardEvent, Fragment, useEffect } from "react";
 
-type Cell = 
+type Cell =
   | string
   | { value: string; correct: boolean; rate?: number; unit?: number };
 
-
 export default function Home() {
   const [rows, setRows] = useState<Cell[][]>([]);
+  const [showModal, setShowModal] = useState(false);
+  const [fingerprint, setFingerprint] = useState<string>("");
+  const [toast, setToast] = useState<{ message: string; id: number } | null>(null);
 
-const mainTypesCols = {
-  PTFT: [4, 5],       // PTFT FEE NO. & AMOUNT
-  "RRTF 1": [7, 8],   // 2-3 WHEELS NO. & AMOUNT
-  "RRTF 2": [11, 12], // 4 WHEELS NO. & AMOUNT
-  "RRTF 3": [14, 15], // 6 WHEELS NO. & AMOUNT
-  "RRTF 4": [17, 18], // 8-10 WHEELS NO. & AMOUNT
-} as const;
-
+  const mainTypesCols = {
+    PTFT: [4, 5],
+    "RRTF 1": [7, 8],
+    "RRTF 2": [11, 12],
+    "RRTF 3": [14, 15],
+    "RRTF 4": [17, 18],
+  } as const;
 
   const rates: Record<string, number> = {
     PTFT: 30,
@@ -27,179 +28,170 @@ const mainTypesCols = {
     "RRTF 4": 516,
   };
 
+  const showToast = (message: string) => {
+    const id = Date.now();
+    setToast({ message, id });
+    setTimeout(() => setToast((prev) => (prev?.id === id ? null : prev)), 2500);
+  };
+
+  // Generate fingerprint (hashed client info)
+  useEffect(() => {
+    (async () => {
+      const res = await fetch("/api/device/register");
+      const { fingerprint } = await res.json();
+      setFingerprint(fingerprint);
+    })();
+  }, []);
+
   const handlePaste = (e: ClipboardEvent<HTMLDivElement>) => {
-  e.preventDefault();
-  const pasteData = e.clipboardData.getData("text/plain").trim();
-  if (!pasteData) return;
+    e.preventDefault();
+    const pasteData = e.clipboardData.getData("text/plain").trim();
+    if (!pasteData) return;
 
-const lines = pasteData
-  .split(/\r?\n/)
-  .map((line) => line.split("\t").map((v) => v.trim()))
-  .filter((line) => line.some((cell) => cell !== "")); // keep lines with any content
+    const lines = pasteData
+      .split(/\r?\n/)
+      .map((line) => line.split("\t").map((v) => v.trim()))
+      .filter((line) => line.some((cell) => cell !== ""));
 
-  const newRows: Cell[][] = [];
+    const newRows: Cell[][] = [];
 
-  lines.forEach((line) => {
-    const service = line[0];
-    const rateRaw = line[1].replace(/[^\d.]/g, "");
-    const rate = parseFloat(rateRaw) || rates[service] || 0;
-    const unit = parseFloat(line[2]) || 0;
-    const amountRaw = line[3].replace(/[^\d.]/g, "") || "";
-    const amount = parseFloat(amountRaw) || 0;
-    const from = line[5] || "";
-    const to = line[6] || "";
+    lines.forEach((line) => {
+      const service = line[0] ?? "";
+      const rateRaw = (line[1] ?? "").replace(/[^\d.]/g, "");
+      const rate = parseFloat(rateRaw) || rates[service] || 0;
+      const unit = parseFloat(line[2] ?? "") || 0;
+      const amountRaw = (line[3] ?? "").replace(/[^\d.]/g, "");
+      const amount = parseFloat(amountRaw) || 0;
+      const from = line[5] ?? "";
+      const to = line[6] ?? "";
 
-    if (amount <= 0) return;
+      if (amount <= 0) return;
 
-    const noValue = from && to ? `${from}-${to}` : from || to;
+      const noValue = from && to ? `${from}-${to}` : from || to;
 
-    // Format amount consistently
-    const formattedAmount: Cell = {
-      value: `PHP ${amount.toLocaleString()}`,
-      correct:
-        service !== "Mooring" && service in mainTypesCols
-          ? Math.abs(rate * unit - amount) < 0.01
-          : true, // Mooring ignored
-      rate: service !== "Mooring" ? rate : undefined,
-      unit: service !== "Mooring" ? unit : undefined,
-    };
+      const formattedAmount: Cell = {
+        value: `PHP ${amount.toLocaleString()}`,
+        correct:
+          service !== "Mooring" && service in mainTypesCols
+            ? Math.abs(rate * unit - amount) < 0.01
+            : true,
+        rate: service !== "Mooring" ? rate : undefined,
+        unit: service !== "Mooring" ? unit : undefined,
+      };
 
-    if (service in mainTypesCols) {
-      const [colNo, colAmount] = mainTypesCols[service as keyof typeof mainTypesCols];
-
-      let row = newRows.find((r) => !r[colNo]);
-      if (!row) {
-        row = Array(19).fill("") as Cell[];
-        newRows.push(row);
-      }
-      row[colNo] = noValue;
-      row[colAmount] = formattedAmount;
-    } else {
-      // Mooring or any other service
-      const newRow = Array(19).fill("") as Cell[];
-      newRow[0] = service;         // TYPE column
-      newRow[1] = noValue;         // SALES INVOICE
-      newRow[2] = formattedAmount; // AMOUNT
-      newRows.push(newRow);
-    }
-  });
-
-  setRows(newRows);
-};
-
-
-  const copyValues = () => {
-  const totalCols = 19;
-  let output = "";
-
-  rows.forEach((row) => {
-    const fullRow = Array.from({ length: totalCols }, (_, i) => {
-      const cell = row[i] || "";
-
-      if (typeof cell === "string") {
-        // Make TYPE column uppercase (assuming TYPE is column 0)
-        return i === 0 ? cell.toUpperCase() : cell;
-      }
-
-      if (typeof cell === "object" && "value" in cell) {
-        // If rate & unit exist, generate formula
-        if (cell.rate !== undefined && cell.unit !== undefined) {
-          return `=${cell.rate}*${cell.unit}`;
+      if (service in mainTypesCols) {
+        const [colNo, colAmount] = mainTypesCols[service as keyof typeof mainTypesCols];
+        let row = newRows.find((r) => !r[colNo]);
+        if (!row) {
+          row = Array(19).fill("") as Cell[];
+          newRows.push(row);
         }
-        // Otherwise just remove "PHP "
-        return cell.value.replace(/^PHP\s*/i, "");
+        row[colNo] = noValue;
+        row[colAmount] = formattedAmount;
+      } else {
+        const newRow = Array(19).fill("") as Cell[];
+        newRow[0] = service;
+        newRow[1] = noValue;
+        newRow[2] = formattedAmount;
+        newRows.push(newRow);
       }
-
-      return "";
     });
 
-    output += fullRow.join("\t") + "\n";
+    setRows(newRows);
+  };
+
+const copyValues = async () => {
+  if (!fingerprint) return;
+
+  const hasValues = rows.some(row =>
+    row.some(cell => {
+      if (typeof cell === "string" && cell.trim() !== "") return true;
+      if (typeof cell === "object" && cell?.value?.trim() !== "") return true;
+      return false;
+    })
+  );
+
+  if (!hasValues) {
+    showToast("Nothing to copy!");
+    return;
+  }
+
+  const response = await fetch("/api/transform", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fingerprint, rows }),
   });
 
-  if (typeof navigator !== "undefined" && navigator.clipboard) {
-    navigator.clipboard.writeText(output).then(() => alert("Values copied!"));
-  } else {
-    alert("Clipboard API not available. Here's the data:\n\n" + output);
+  if (response.status === 403) {
+    setShowModal(true);
+    return;
   }
+
+  if (response.status === 429) {
+    showToast(
+      "Whoa, slow down ☕! Too many requests. Try again in a minute."
+    );
+    return;
+  }
+
+  const { tsv } = await response.json();
+  await navigator.clipboard.writeText(tsv);
+  showToast("Copied!");
+  setRows([]);
 };
 
-
-
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.altKey && e.key === "Tab") {
-        setRows([]);
-      }
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, []);
 
   return (
     <div className="relative min-h-screen flex flex-col justify-center items-center text-black p-4 gap-4">
       <div className="fixed inset-0 -z-10 bg-modern-grid"></div>
-   <img 
-    src="/logo.png" 
-    alt="Logo" 
-    className="absolute top-32 left-1/2 -translate-x-1/2 w-150 h-auto"
-  />
-    <div className="text-md font-serif text-gray-700 bg-gray-200 p-2 text-center rounded w-full max-w-5xl mb-2">
-  📋 Instructions: <br /> <br /> 1️⃣ Paste your tab-separated data directly into the table below. Use &quot;Ctrl + V&quot; <br /> Amounts will be checked automatically against their rate × units. Correct amounts are highlighted 
-  <span className="text-green-600 font-semibold"> green</span>, incorrect amounts 
-  <span className="text-red-600 font-semibold"> red</span>.<br />2️⃣ Use Alt + R to reset the table. <br /> 3️⃣ Click &quot;Copy Values&quot; to copy all table data. <br /> <br /> Enjoy! 🥰
-<a
-  href="https://buymeacoffee.com/kendrake"
-  target="_blank"
-  rel="noopener noreferrer"
-  className="fixed bottom-6 right-6 bg-yellow-400 text-black font-semibold font-serif uppercase text-md px-5 py-2 rounded-lg shadow-md hover:bg-yellow-500 transition-all duration-300 z-50"
->
-  ☕ Buy me a coffee
-</a>
+      <img
+        src="/logo.png"
+        alt="Logo"
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-150 h-auto"
+      />
+
+      <div className="text-gray-800 bg-yellow-50 border border-yellow-300 rounded-xl shadow p-4 text-center max-w-3xl w-full mb-3 mx-auto font-sans">
+        {/* Title */}
+        <h2 className="text-lg font-bold mb-3 text-yellow-600">
+          📋 Instructions
+        </h2>
+
+        {/* Content */}
+        <p className="text-sm leading-relaxed">
+          <span className="font-semibold">1️⃣ Paste</span> your tab-separated data using <kbd className="bg-gray-200 px-1 py-0.5 rounded text-xs">Ctrl + V</kbd>. <br /><br />
+          <span className="font-semibold">2️⃣ Amounts</span> auto-check <span className="text-yellow-600 font-semibold">rate × units</span>. Correct = <span className="text-green-500 font-semibold">green</span>, Incorrect = <span className="text-red-500 font-semibold">red</span>. <br /><br />
+          <span className="font-semibold">3️⃣ Click</span> <span className="bg-yellow-400 px-2 py-1 rounded font-bold text-xs">Copy</span> to copy all data. <br /><br />
+          Enjoy your workflow! ☕
+        </p>
+      </div>
 
 
-</div>
 
       <div className="overflow-x-auto border border-black" onPaste={handlePaste}>
         <table className="border-collapse border border-black text-sm w-full">
           <thead>
             <tr>
-              <th rowSpan={2} className="border border-black px-4 py-2 bg-gray-200">
-                TYPE
-              </th>
-              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">
-                SALES INVOICE
-              </th>
+              <th rowSpan={2} className="border border-black px-4 py-2 bg-gray-200">TYPE</th>
+              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">SALES INVOICE</th>
               <th rowSpan={2} className="border border-black bg-orange-300 px-1 py-1"></th>
-              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">
-                PTFT FEE
-              </th>
+              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">PTFT FEE</th>
               <th rowSpan={2} className="border border-black bg-orange-300 px-1 py-1"></th>
-              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">
-                2-3 WHEELS
-              </th>
+              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">2-3 WHEELS</th>
               <th rowSpan={2} className="border border-black bg-orange-300 px-1 py-1"></th>
               <th rowSpan={2} className="border border-black bg-orange-300 px-1 py-1"></th>
-              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">
-                4 WHEELS
-              </th>
+              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">4 WHEELS</th>
               <th rowSpan={2} className="border border-black bg-orange-300 px-1 py-1"></th>
-              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">
-                6 WHEELS
-              </th>
+              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">6 WHEELS</th>
               <th rowSpan={2} className="border border-black bg-orange-300 px-1 py-1"></th>
-              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">
-                8-10 WHEELS
-              </th>
+              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">8-10 WHEELS</th>
             </tr>
             <tr>
-              {Array(6)
-                .fill(0)
-                .map((_, i) => (
-                  <Fragment key={i}>
-                    <th className="border border-black px-4 py-2">NO.</th>
-                    <th className="border border-black px-4 py-2">AMOUNT</th>
-                  </Fragment>
-                ))}
+              {Array(6).fill(0).map((_, i) => (
+                <Fragment key={i}>
+                  <th className="border border-black px-4 py-2">NO.</th>
+                  <th className="border border-black px-4 py-2">AMOUNT</th>
+                </Fragment>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -208,13 +200,11 @@ const lines = pasteData
                 {row.map((cell, j) => {
                   let display = "";
                   let bgClass = "";
-                  if (typeof cell === "string") {
-                    display = cell;
-                  } else if (typeof cell === "object" && "value" in cell && "correct" in cell) {
+                  if (typeof cell === "string") display = cell;
+                  else if (typeof cell === "object" && "value" in cell && "correct" in cell) {
                     display = cell.value;
                     bgClass = cell.correct ? "bg-green-200" : "bg-red-200";
                   }
-
                   return (
                     <td
                       key={j}
@@ -236,12 +226,67 @@ const lines = pasteData
           </tbody>
         </table>
       </div>
+
       <button
         onClick={copyValues}
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        className="inline-block bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-6 rounded-lg shadow-lg"
       >
-        Copy Values
+        Copy
       </button>
+
+      {/* Modal */}
+      {showModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-opacity-40 backdrop-blur-sm z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center shadow-2xl relative">
+            {/* Icon */}
+            <div className="flex justify-center mb-4">
+              <img
+                src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
+                alt="Buy Me a Coffee"
+                className="w-16 h-16"
+              />
+            </div>
+
+            {/* Title */}
+            <h2 className="text-2xl font-bold mb-3 text-gray-800">
+              Subscription Required
+            </h2>
+
+            {/* Description */}
+            <p className="text-gray-600 mb-6">
+              You've reached <span className="font-semibold text-yellow-500">100 copies</span> on this machine!
+              Get <span className="font-semibold">unlimited access for 1 month</span> by subscribing below.
+            </p>
+
+            {/* Buttons */}
+            <a
+              href="https://buymeacoffee.com/kendrake"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-6 rounded-full shadow-lg transition-transform transform hover:scale-105"
+            >
+              ☕ Get 1-Month Subscription
+            </a>
+
+            {/* Small Note */}
+            <p className="mt-4 text-xs text-gray-500">
+              Your support keeps this service running ❤️
+            </p>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+  <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-yellow-500 text-white font-semibold px-6 py-3 rounded-full shadow-xl flex items-center gap-2 z-50 animate-bounce">
+    <img
+      src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
+      alt="Coffee Icon"
+      className="w-6 h-6"
+    />
+    <span>{toast.message}</span>
+  </div>
+)}
+
     </div>
   );
 }
