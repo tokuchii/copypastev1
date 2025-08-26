@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { userStore } from "./../../lib/db";
 
-const MAX_FREE_COPIES = 1;
+const MAX_FREE_COPIES = 100;
 const RATE_LIMIT_WINDOW = 60 * 1000; // 1 minute
 const MAX_REQUESTS_PER_MINUTE = 30;
 
