@@ -96,7 +96,10 @@ const lines = pasteData
     const fullRow = Array.from({ length: totalCols }, (_, i) => {
       const cell = row[i] || "";
 
-      if (typeof cell === "string") return cell;
+      if (typeof cell === "string") {
+        // Make TYPE column uppercase (assuming TYPE is column 0)
+        return i === 0 ? cell.toUpperCase() : cell;
+      }
 
       if (typeof cell === "object" && "value" in cell) {
         // If rate & unit exist, generate formula
@@ -119,6 +122,7 @@ const lines = pasteData
     alert("Clipboard API not available. Here's the data:\n\n" + output);
   }
 };
+
 
 
   useEffect(() => {
