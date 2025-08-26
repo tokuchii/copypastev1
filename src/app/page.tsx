@@ -28,61 +28,65 @@ const mainTypesCols = {
   };
 
   const handlePaste = (e: ClipboardEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const pasteData = e.clipboardData.getData("text/plain").trim();
-    if (!pasteData) return;
+  e.preventDefault();
+  const pasteData = e.clipboardData.getData("text/plain").trim();
+  if (!pasteData) return;
 
-    const lines = pasteData
-      .split(/\r?\n/)
-      .map((line) => line.split("\t").map((v) => v.trim()))
-      .filter((line) => line.length >= 7);
+const lines = pasteData
+  .split(/\r?\n/)
+  .map((line) => line.split("\t").map((v) => v.trim()))
+  .filter((line) => line.some((cell) => cell !== "")); // keep lines with any content
 
-    const newRows: Cell[][] = [];
+  const newRows: Cell[][] = [];
 
-    lines.forEach((line) => {
-      const service = line[0];
-      const rateRaw = line[1].replace(/[^\d.]/g, "");
-      const rate = parseFloat(rateRaw) || rates[service] || 0;
-      const unit = parseFloat(line[2]) || 0;
-      const amountRaw = line[3].replace(/[^\d.]/g, "") || "";
-      const amount = parseFloat(amountRaw) || 0;
-      const from = line[5] || "";
-      const to = line[6] || "";
+  lines.forEach((line) => {
+    const service = line[0];
+    const rateRaw = line[1].replace(/[^\d.]/g, "");
+    const rate = parseFloat(rateRaw) || rates[service] || 0;
+    const unit = parseFloat(line[2]) || 0;
+    const amountRaw = line[3].replace(/[^\d.]/g, "") || "";
+    const amount = parseFloat(amountRaw) || 0;
+    const from = line[5] || "";
+    const to = line[6] || "";
 
-      if (amount <= 0) return;
+    if (amount <= 0) return;
 
-      const noValue = from && to ? `${from}-${to}` : from || to;
+    const noValue = from && to ? `${from}-${to}` : from || to;
 
-   const isCorrect = Math.abs(rate * unit - amount) < 0.01;
-const formattedAmount: Cell = {
-  value: `PHP ${amount.toLocaleString()}`,
-  correct: isCorrect,
-  rate,
-  unit,
+    // Format amount consistently
+    const formattedAmount: Cell = {
+      value: `PHP ${amount.toLocaleString()}`,
+      correct:
+        service !== "Mooring" && service in mainTypesCols
+          ? Math.abs(rate * unit - amount) < 0.01
+          : true, // Mooring ignored
+      rate: service !== "Mooring" ? rate : undefined,
+      unit: service !== "Mooring" ? unit : undefined,
+    };
+
+    if (service in mainTypesCols) {
+      const [colNo, colAmount] = mainTypesCols[service as keyof typeof mainTypesCols];
+
+      let row = newRows.find((r) => !r[colNo]);
+      if (!row) {
+        row = Array(19).fill("") as Cell[];
+        newRows.push(row);
+      }
+      row[colNo] = noValue;
+      row[colAmount] = formattedAmount;
+    } else {
+      // Mooring or any other service
+      const newRow = Array(19).fill("") as Cell[];
+      newRow[0] = service;         // TYPE column
+      newRow[1] = noValue;         // SALES INVOICE
+      newRow[2] = formattedAmount; // AMOUNT
+      newRows.push(newRow);
+    }
+  });
+
+  setRows(newRows);
 };
 
-
-      if (service in mainTypesCols) {
-        const [colNo, colAmount] = mainTypesCols[service as keyof typeof mainTypesCols];
-
-        let row = newRows.find((r) => !r[colNo]);
-        if (!row) {
-          row = Array(19).fill("") as Cell[];
-          newRows.push(row);
-        }
-        row[colNo] = noValue;
-        row[colAmount] = formattedAmount;
-      } else {
-        const newRow = Array(19).fill("") as Cell[];
-        newRow[0] = service;
-        newRow[1] = noValue;
-        newRow[2] = formattedAmount;
-        newRows.push(newRow);
-      }
-    });
-
-    setRows(newRows);
-  };
 
   const copyValues = () => {
   const totalCols = 19;
