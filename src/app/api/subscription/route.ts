@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import { userStore } from "./../../lib/db";
 
-export async function POST(req: Request) {
-  const { fingerprint } = await req.json();
+export async function GET(req: Request) {
+  const url = new URL(req.url);
+  const fingerprint = url.searchParams.get("fingerprint");
   if (!fingerprint) return new NextResponse("Missing fingerprint", { status: 400 });
 
-  const validUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-
-  userStore[fingerprint] = { copies: 0, validUntil: validUntil.toISOString() };
-
-  return NextResponse.json({ success: true, validUntil });
+  const user = userStore[fingerprint] || { copies: 0 };
+  return NextResponse.json({ validUntil: user.validUntil });
 }
