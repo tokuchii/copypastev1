@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, ClipboardEvent, Fragment, useEffect } from "react";
-
+import Image from "next/image";
 type Cell =
   | string
   | { value: string; correct: boolean; rate?: number; unit?: number };
@@ -34,14 +34,19 @@ export default function Home() {
     setTimeout(() => setToast((prev) => (prev?.id === id ? null : prev)), 2500);
   };
 
-  // Generate fingerprint (hashed client info)
   useEffect(() => {
-    (async () => {
+  (async () => {
+    try {
       const res = await fetch("/api/device/register");
+      if (!res.ok) throw new Error("Failed to fetch fingerprint");
       const { fingerprint } = await res.json();
       setFingerprint(fingerprint);
-    })();
-  }, []);
+    } catch {
+      showToast("Failed to initialize device ID");
+    }
+  })();
+}, []);
+
 
   const handlePaste = (e: ClipboardEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -100,45 +105,45 @@ export default function Home() {
     setRows(newRows);
   };
 
-const copyValues = async () => {
-  if (!fingerprint) return;
+  const copyValues = async () => {
+    if (!fingerprint) return;
 
-  const hasValues = rows.some(row =>
-    row.some(cell => {
-      if (typeof cell === "string" && cell.trim() !== "") return true;
-      if (typeof cell === "object" && cell?.value?.trim() !== "") return true;
-      return false;
-    })
-  );
-
-  if (!hasValues) {
-    showToast("Nothing to copy!");
-    return;
-  }
-
-  const response = await fetch("/api/transform", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ fingerprint, rows }),
-  });
-
-  if (response.status === 403) {
-    setShowModal(true);
-    return;
-  }
-
-  if (response.status === 429) {
-    showToast(
-      "Whoa, slow down ☕! Too many requests. Try again in a minute."
+    const hasValues = rows.some(row =>
+      row.some(cell => {
+        if (typeof cell === "string" && cell.trim() !== "") return true;
+        if (typeof cell === "object" && cell?.value?.trim() !== "") return true;
+        return false;
+      })
     );
-    return;
-  }
 
-  const { tsv } = await response.json();
-  await navigator.clipboard.writeText(tsv);
-  showToast("Copied!");
-  setRows([]);
-};
+    if (!hasValues) {
+      showToast("Nothing to copy!");
+      return;
+    }
+
+    const response = await fetch("/api/transform", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fingerprint, rows }),
+    });
+
+    if (response.status === 403) {
+      setShowModal(true);
+      return;
+    }
+
+    if (response.status === 429) {
+      showToast(
+        "Whoa, slow down ☕! Too many requests. Try again in a minute."
+      );
+      return;
+    }
+
+    const { tsv } = await response.json();
+    await navigator.clipboard.writeText(tsv);
+    showToast("Copied!");
+    setRows([]);
+  };
 
 
   return (
@@ -212,9 +217,12 @@ const copyValues = async () => {
                       contentEditable
                       suppressContentEditableWarning
                       onBlur={(e) => {
-                        const newRows = [...rows];
-                        newRows[i][j] = e.currentTarget.textContent || "";
+                        const updatedValue = e.currentTarget.textContent?.trim() || "";
+                        const newRows = rows.map((r, rowIdx) =>
+                          rowIdx === i ? r.map((c, colIdx) => (colIdx === j ? updatedValue : c)) : r
+                        );
                         setRows(newRows);
+
                       }}
                     >
                       {display}
@@ -254,7 +262,7 @@ const copyValues = async () => {
 
             {/* Description */}
             <p className="text-gray-600 mb-6">
-              You've reached <span className="font-semibold text-yellow-500">100 copies</span> on this machine!
+              You&apos;ve reached <span className="font-semibold text-yellow-500">100 copies</span> on this machine!
               Get <span className="font-semibold">unlimited access for 1 month</span> by subscribing below.
             </p>
 
@@ -277,15 +285,20 @@ const copyValues = async () => {
       )}
 
       {toast && (
-  <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-yellow-500 text-white font-semibold px-6 py-3 rounded-full shadow-xl flex items-center gap-2 z-50 animate-bounce">
-    <img
-      src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
-      alt="Coffee Icon"
-      className="w-6 h-6"
-    />
-    <span>{toast.message}</span>
-  </div>
-)}
+        <div
+          key={toast.id}
+          className="fixed top-6 left-1/2 -translate-x-1/2 bg-yellow-500 text-white font-semibold px-6 py-3 rounded-full shadow-xl flex items-center gap-2 z-50 transition-all duration-300 ease-in-out"
+        >
+          <Image
+            src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
+            alt="Coffee Icon"
+            width={24}
+            height={24}
+            className="w-6 h-6"
+          />
+          <span>{toast.message}</span>
+        </div>
+      )}
 
     </div>
   );

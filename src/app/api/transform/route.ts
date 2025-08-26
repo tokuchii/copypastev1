@@ -7,6 +7,9 @@ const MAX_REQUESTS_PER_MINUTE = 30;
 
 const ipRequests: Record<string, { count: number; lastReset: number }> = {};
 
+type Cell = string | { value: string; rate?: number; unit?: number };
+type Row = Cell[];
+
 export async function POST(req: Request) {
   const ip = req.headers.get("x-forwarded-for") || "local";
   const now = Date.now();
@@ -25,7 +28,7 @@ export async function POST(req: Request) {
     return new NextResponse("Too many requests, slow down.", { status: 429 });
   }
 
-  const { fingerprint, rows } = await req.json();
+  const { fingerprint, rows }: { fingerprint: string; rows: Row[] } = await req.json();
   if (!fingerprint) return new NextResponse("Missing fingerprint", { status: 400 });
 
   const user = userStore[fingerprint] || { copies: 0 };
@@ -33,10 +36,10 @@ export async function POST(req: Request) {
 
   const hasActiveSub = user.validUntil && new Date(user.validUntil) > nowDate;
 
-  const hasValues = rows.some((row: any[]) =>
-    row.some((cell: any) => {
+  const hasValues = rows.some((row) =>
+    row.some((cell) => {
       if (typeof cell === "string" && cell.trim() !== "") return true;
-      if (typeof cell === "object" && cell?.value?.trim() !== "") return true;
+      if (typeof cell === "object" && cell.value.trim() !== "") return true;
       return false;
     })
   );
@@ -48,7 +51,7 @@ export async function POST(req: Request) {
   const totalCols = 19;
   let output = "";
 
-  rows.forEach((row: any[]) => {
+  rows.forEach((row) => {
     const fullRow = Array.from({ length: totalCols }, (_, i) => {
       const cell = row[i] || "";
       if (typeof cell === "string") return i === 0 ? cell.toUpperCase() : cell;
