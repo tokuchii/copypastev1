@@ -2,6 +2,7 @@
 
 import { useState, ClipboardEvent, Fragment, useEffect } from "react";
 import Image from "next/image";
+
 type Cell =
   | string
   | { value: string; correct: boolean; rate?: number; unit?: number };
@@ -13,16 +14,6 @@ export default function Home() {
   const [toast, setToast] = useState<{ message: string; id: number } | null>(null);
   const [subscription, setSubscription] = useState<{ validUntil?: string } | null>(null);
   const [showSubscribeModal, setShowSubscribeModal] = useState(false);
-
-
-useEffect(() => {
-  if (!fingerprint) return;
-
-  fetch(`/api/subscription?fingerprint=${fingerprint}`)
-    .then((res) => res.json())
-    .then(setSubscription)
-    .catch(() => {});
-}, [fingerprint]);
 
   const mainTypesCols = {
     PTFT: [4, 5],
@@ -47,18 +38,26 @@ useEffect(() => {
   };
 
   useEffect(() => {
-  (async () => {
-    try {
-      const res = await fetch("/api/device/register");
-      if (!res.ok) throw new Error("Failed to fetch fingerprint");
-      const { fingerprint } = await res.json();
-      setFingerprint(fingerprint);
-    } catch {
-      showToast("Failed to initialize device ID");
-    }
-  })();
-}, []);
+    if (!fingerprint) return;
 
+    fetch(`/api/subscription?fingerprint=${fingerprint}`)
+      .then((res) => res.json())
+      .then(setSubscription)
+      .catch(() => {});
+  }, [fingerprint]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/device/register");
+        if (!res.ok) throw new Error("Failed to fetch fingerprint");
+        const { fingerprint } = await res.json();
+        setFingerprint(fingerprint);
+      } catch {
+        showToast("Failed to initialize device ID");
+      }
+    })();
+  }, []);
 
   const handlePaste = (e: ClipboardEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -145,9 +144,7 @@ useEffect(() => {
     }
 
     if (response.status === 429) {
-      showToast(
-        "Whoa, slow down ☕! Too many requests. Try again in a minute."
-      );
+      showToast("Whoa, slow down ☕! Too many requests. Try again in a minute.");
       return;
     }
 
@@ -157,55 +154,54 @@ useEffect(() => {
     setRows([]);
   };
 
-
   return (
-    <div className="relative min-h-screen flex flex-col justify-center items-center text-black p-4 gap-4">
+    <div className="relative min-h-screen flex flex-col justify-center items-center text-black p-2 sm:p-4 gap-4">
       <div className="fixed inset-0 -z-10 bg-modern-grid"></div>
-      <img
-        src="/logo.png"
-        alt="Logo"
-        className="absolute top-0 left-1/2 -translate-x-1/2 w-150 h-auto"
-      />
-
-      <div className="text-gray-800 bg-yellow-50 border border-yellow-300 rounded-xl shadow p-4 text-center max-w-3xl w-full mb-3 mx-auto font-sans">
-        {/* Title */}
-        <h2 className="text-lg font-bold mb-3 text-yellow-600">
-          📋 Instructions
-        </h2>
-
-        {/* Content */}
-        <p className="text-sm leading-relaxed">
-          <span className="font-semibold">1️⃣ Paste</span> your tab-separated data using <kbd className="bg-gray-200 px-1 py-0.5 rounded text-xs">Ctrl + V</kbd>. <br /><br />
-          <span className="font-semibold">2️⃣ Amounts</span> auto-check <span className="text-yellow-600 font-semibold">rate × units</span>. Correct = <span className="text-green-500 font-semibold">green</span>, Incorrect = <span className="text-red-500 font-semibold">red</span>. <br /><br />
-          <span className="font-semibold">3️⃣ Click</span> <span className="bg-yellow-400 px-2 py-1 rounded font-bold text-xs">Copy</span> to copy all data. <br /><br />
+    <img src="/logo.png" alt="Logo" className="absolute top-12 left-1/2 -translate-x-1/2 w-150 h-auto" />
+    
+      {/* Instructions */}
+      <div className="text-gray-800 bg-yellow-50 border border-yellow-300 rounded-xl shadow p-4 sm:p-6 text-center max-w-full sm:max-w-3xl w-full mb-3 mx-auto font-sans text-xs sm:text-sm">
+        <h2 className="text-lg sm:text-xl font-bold mb-3 text-yellow-600">📋 Instructions</h2>
+        <p className="leading-relaxed">
+          <span className="font-semibold">1️⃣ Paste</span> your tab-separated data using{" "}
+          <kbd className="bg-gray-200 px-1 py-0.5 rounded text-xs">Ctrl + V</kbd>. <br /><br />
+          <span className="font-semibold">2️⃣ Amounts</span> auto-check{" "}
+          <span className="text-yellow-600 font-semibold">rate × units</span>. Correct ={" "}
+          <span className="text-green-500 font-semibold">green</span>, Incorrect ={" "}
+          <span className="text-red-500 font-semibold">red</span>. <br /><br />
+          <span className="font-semibold">3️⃣ Click</span>{" "}
+          <span className="bg-yellow-400 px-2 py-1 rounded font-bold text-xs sm:text-sm">
+            Copy
+          </span>{" "}
+          to copy all data. <br /><br />
           Enjoy your workflow! ☕
         </p>
-        
       </div>
 
-      <div className="overflow-x-auto border border-black" onPaste={handlePaste}>
-        <table className="border-collapse border border-black text-sm w-full">
+      {/* Table */}
+      <div className="overflow-x-auto w-full border border-black">
+        <table className="min-w-full border-collapse border border-black text-xs sm:text-sm">
           <thead>
             <tr>
-              <th rowSpan={2} className="border border-black px-4 py-2 bg-gray-200">TYPE</th>
-              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">SALES INVOICE</th>
+              <th rowSpan={2} className="border border-black px-2 sm:px-4 py-1 sm:py-2 bg-gray-200">TYPE</th>
+              <th colSpan={2} className="border border-black px-2 sm:px-4 py-1 sm:py-2 bg-gray-200">SALES INVOICE</th>
               <th rowSpan={2} className="border border-black bg-orange-300 px-1 py-1"></th>
-              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">PTFT FEE</th>
+              <th colSpan={2} className="border border-black px-2 sm:px-4 py-1 sm:py-2 bg-gray-200">PTFT FEE</th>
               <th rowSpan={2} className="border border-black bg-orange-300 px-1 py-1"></th>
-              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">2-3 WHEELS</th>
+              <th colSpan={2} className="border border-black px-2 sm:px-4 py-1 sm:py-2 bg-gray-200">2-3 WHEELS</th>
               <th rowSpan={2} className="border border-black bg-orange-300 px-1 py-1"></th>
               <th rowSpan={2} className="border border-black bg-orange-300 px-1 py-1"></th>
-              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">4 WHEELS</th>
+              <th colSpan={2} className="border border-black px-2 sm:px-4 py-1 sm:py-2 bg-gray-200">4 WHEELS</th>
               <th rowSpan={2} className="border border-black bg-orange-300 px-1 py-1"></th>
-              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">6 WHEELS</th>
+              <th colSpan={2} className="border border-black px-2 sm:px-4 py-1 sm:py-2 bg-gray-200">6 WHEELS</th>
               <th rowSpan={2} className="border border-black bg-orange-300 px-1 py-1"></th>
-              <th colSpan={2} className="border border-black px-4 py-2 bg-gray-200">8-10 WHEELS</th>
+              <th colSpan={2} className="border border-black px-2 sm:px-4 py-1 sm:py-2 bg-gray-200">8-10 WHEELS</th>
             </tr>
             <tr>
               {Array(6).fill(0).map((_, i) => (
                 <Fragment key={i}>
-                  <th className="border border-black px-4 py-2">NO.</th>
-                  <th className="border border-black px-4 py-2">AMOUNT</th>
+                  <th className="border border-black px-2 sm:px-4 py-1 sm:py-2">NO.</th>
+                  <th className="border border-black px-2 sm:px-4 py-1 sm:py-2">AMOUNT</th>
                 </Fragment>
               ))}
             </tr>
@@ -224,7 +220,7 @@ useEffect(() => {
                   return (
                     <td
                       key={j}
-                      className={`border border-black px-4 py-2 ${bgClass}`}
+                      className={`border border-black px-2 sm:px-4 py-1 sm:py-2 ${bgClass}`}
                       contentEditable
                       suppressContentEditableWarning
                       onBlur={(e) => {
@@ -233,7 +229,6 @@ useEffect(() => {
                           rowIdx === i ? r.map((c, colIdx) => (colIdx === j ? updatedValue : c)) : r
                         );
                         setRows(newRows);
-
                       }}
                     >
                       {display}
@@ -246,18 +241,18 @@ useEffect(() => {
         </table>
       </div>
 
+      {/* Copy Button */}
       <button
         onClick={copyValues}
-        className="inline-block bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-6 rounded-lg shadow-lg cursor-pointer"
+        className="w-full sm:w-auto inline-block bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-6 rounded-lg shadow-lg cursor-pointer"
       >
         Copy
       </button>
 
-      {/* Modal */}
+      {/* Modals & Toasts */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-opacity-40 backdrop-blur-sm z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center shadow-2xl relative">
-            {/* Icon */}
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-sm sm:max-w-md w-full text-center shadow-2xl relative">
             <div className="flex justify-center mb-4">
               <img
                 src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
@@ -265,36 +260,24 @@ useEffect(() => {
                 className="w-16 h-16"
               />
             </div>
-
-            {/* Title */}
-            <h2 className="text-2xl font-bold mb-3 text-gray-800">
-              Subscription Required
-            </h2>
-
-            {/* Description */}
+            <h2 className="text-2xl font-bold mb-3 text-gray-800">Subscription Required</h2>
             <p className="text-gray-600 mb-6">
-              You&apos;ve reached <span className="font-semibold text-yellow-500">100 copies</span> on this machine!
-              Get <span className="font-semibold">unlimited access for 1 month</span> by subscribing below.
+              You've reached <span className="font-semibold text-yellow-500">100 copies</span> on this machine! Get <span className="font-semibold">unlimited access for 1 month</span> by subscribing below.
             </p>
-
-            {/* Buttons */}
             <a
               href="https://buymeacoffee.com/kendrake"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-6 rounded-full shadow-lg transition-transform transform hover:scale-105 cursor-pointer"
+              className="inline-block bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-6 rounded-full shadow-lg transition-transform transform hover:scale-105 cursor-pointer w-full sm:w-auto"
             >
               ☕ Get 1-Month Subscription
             </a>
-      {/* Close Button */}
-      <button
-        onClick={() => setShowModal(false)}
-        className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 font-bold cursor-pointer"
-      >
-        ✕
-      </button>
-
-            {/* Small Note */}
+            <button
+              onClick={() => setShowModal(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 font-bold cursor-pointer"
+            >
+              ✕
+            </button>
             <p className="mt-4 text-xs text-gray-500">
               Your support keeps this service running ❤️
             </p>
@@ -305,7 +288,7 @@ useEffect(() => {
       {toast && (
         <div
           key={toast.id}
-          className="fixed top-6 left-1/2 -translate-x-1/2 bg-yellow-500 text-white font-semibold px-6 py-3 rounded-full shadow-xl flex items-center gap-2 z-50 transition-all duration-300 ease-in-out"
+          className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 bg-yellow-500 text-white font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-full shadow-xl flex items-center gap-2 z-50 transition-all duration-300 ease-in-out text-xs sm:text-sm"
         >
           <Image
             src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
@@ -317,70 +300,60 @@ useEffect(() => {
           <span>{toast.message}</span>
         </div>
       )}
-<div className="fixed bottom-4 right-4 z-50">
-  {subscription?.validUntil && new Date(subscription.validUntil) > new Date() ? (
-    <div className="bg-green-200 text-green-800 px-4 py-2 rounded shadow-lg">
-      ✅ Subscribed until {new Date(subscription.validUntil).toLocaleDateString()}
-    </div>
-  ) : (
-    <button
-      onClick={() => setShowSubscribeModal(true)}
-      className="bg-yellow-200 text-yellow-800 px-4 py-2 rounded shadow-lg hover:bg-yellow-300 transition-colors cursor-pointer"
-    >
-      ⚠️ Free mode – subscribe to unlock unlimited copies
-    </button>
-  )}
-</div>
-{showSubscribeModal && (
-  <div className="fixed inset-0 flex items-center justify-center bg-opacity-40 backdrop-blur-sm z-50">
-    <div className="bg-white rounded-2xl p-8 max-w-md w-full text-center shadow-2xl relative">
-      {/* Icon */}
-      <div className="flex justify-center mb-4">
-        <img
-          src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
-          alt="Buy Me a Coffee"
-          className="w-16 h-16"
-        />
+
+      {/* Subscription Alert */}
+      <div className="fixed bottom-4 right-4 z-50">
+        {subscription?.validUntil && new Date(subscription.validUntil) > new Date() ? (
+          <div className="bg-green-200 text-green-800 px-4 py-2 rounded shadow-lg text-xs sm:text-sm">
+            ✅ Subscribed until {new Date(subscription.validUntil).toLocaleDateString()}
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowSubscribeModal(true)}
+            className="bg-yellow-200 text-yellow-800 px-4 py-2 rounded shadow-lg hover:bg-yellow-300 transition-colors text-xs sm:text-sm"
+          >
+            ⚠️ Free mode – subscribe to unlock unlimited copies
+          </button>
+        )}
       </div>
 
-      {/* Title */}
-      <h2 className="text-2xl font-bold mb-3 text-gray-800">
-        Unlock Unlimited Copies
-      </h2>
-
-      {/* Description */}
-      <p className="text-gray-600 mb-6">
-        You are currently in <span className="font-semibold text-yellow-500">Free mode</span>.
-        Get <span className="font-semibold">unlimited access for 1 month</span> by subscribing!
-      </p>
-
-      {/* Buttons */}
-      <a
-        href="https://buymeacoffee.com/kendrake"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-block bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-6 rounded-full shadow-lg transition-transform transform hover:scale-105 cursor-pointer"
-      >
-        ☕ Subscribe Now
-      </a>
-
-      {/* Close Button */}
-      <button
-        onClick={() => setShowSubscribeModal(false)}
-        className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 font-bold cursor-pointer"
-      >
-        ✕
-      </button>
-
-      {/* Small Note */}
-      <p className="mt-4 text-xs text-gray-500">
-        Your support keeps this service running ❤️
-      </p>
-    </div>
-  </div>
-)}
-
-
+      {showSubscribeModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-opacity-40 backdrop-blur-sm z-50">
+          <div className="bg-white rounded-2xl p-6 sm:p-8 max-w-sm sm:max-w-md w-full text-center shadow-2xl relative">
+            <div className="flex justify-center mb-4">
+              <img
+                src="https://cdn.buymeacoffee.com/buttons/bmc-new-btn-logo.svg"
+                alt="Buy Me a Coffee"
+                className="w-16 h-16"
+              />
+            </div>
+            <h2 className="text-2xl font-bold mb-3 text-gray-800">
+              Unlock Unlimited Copies
+            </h2>
+            <p className="text-gray-600 mb-6">
+              You are currently in <span className="font-semibold text-yellow-500">Free mode</span>.
+              Get <span className="font-semibold">unlimited access for 1 month</span> by subscribing!
+            </p>
+            <a
+              href="https://buymeacoffee.com/kendrake"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-6 rounded-full shadow-lg transition-transform transform hover:scale-105 cursor-pointer w-full sm:w-auto"
+            >
+              ☕ Subscribe Now
+            </a>
+            <button
+              onClick={() => setShowSubscribeModal(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 font-bold cursor-pointer"
+            >
+              ✕
+            </button>
+            <p className="mt-4 text-xs text-gray-500">
+              Your support keeps this service running ❤️
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
